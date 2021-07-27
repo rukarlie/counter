@@ -1,0 +1,56 @@
+
+    GPTimerCC26XX_Params GPT_params;
+    GPTimerCC26XX_Params_init(&GPT_params);
+    GPT_params.width          = GPT_CONFIG_16BIT;
+    GPT_params.mode           = GPT_MODE_EDGE_COUNT;
+    GPT_params.direction      = GPTimerCC26XX_DIRECTION_UP;
+    GPT_params.debugStallMode = GPTimerCC26XX_DEBUG_STALL_OFF;
+    GPTimerCC26XX_Handle hTimer = GPTimerCC26XX_open(0, &GPT_params);
+    GPTimerCC26XX_Handle hTimer2 = GPTimerCC26XX_open(1, &GPT_params);
+
+    GPTimerCC26XX_setCaptureEdge(hTimer, GPTimerCC26XX_POS_EDGE);
+    GPTimerCC26XX_setCaptureEdge(hTimer2, GPTimerCC26XX_POS_EDGE);
+
+    GPTimerCC26XX_registerInterrupt(hTimer, timerCallback, GPT_INT_CAPTURE_MATCH);
+    GPTimerCC26XX_setMatchValue(hTimer, 40);
+    GPTimerCC26XX_enableInterrupt(hTimer, GPT_INT_CAPTURE_MATCH);
+
+    PIN_State timerPinState;
+    PIN_Config GptPinInitTable[2]= {PULSE_PIN_1|PIN_INPUT_EN|PIN_PULLDOWN, PIN_TERMINATE};
+    PIN_Handle timerPinHandle = PIN_open(&timerPinState, GptPinInitTable);
+
+
+
+    GPTimerCC26XX_PinMux pinMux = GPTimerCC26XX_getPinMux(hTimer);
+    //Fan output is mapped to DIO25
+    PINCC26XX_setMux(timerPinHandle, PULSE_PIN_1, pinMux);
+
+    PIN_State timerPinState2;
+    PIN_Config GptPinInitTable2[2]= {PULSE_PIN_2|PIN_INPUT_EN|PIN_PULLDOWN, PIN_TERMINATE};
+    PIN_Handle timerPinHandle2 = PIN_open(&timerPinState2, GptPinInitTable2);
+
+
+
+    GPTimerCC26XX_PinMux pinMux2 = GPTimerCC26XX_getPinMux(hTimer2);
+    //Fan output is mapped to DIO25
+    PINCC26XX_setMux(timerPinHandle2, PULSE_PIN_2, pinMux2);
+
+    GPTimerCC26XX_start(hTimer);
+    GPTimerCC26XX_start(hTimer2);
+    uint16_t old_cnt=0;
+
+    while(1){
+        Task_sleep(100000);
+        GPTimerCC26XX_Value timer_val = GPTimerCC26XX_getValue(hTimer);
+        GPTimerCC26XX_Value timer_val2 = GPTimerCC26XX_getValue(hTimer2);
+        char tmp2[30];
+        sprintf(tmp2,"CNT_tst: 1: %d | 2: %d",timer_val,timer_val2);
+        uint8_t cnt = len(tmp2, sizeof(tmp2));
+       // UartCommunication_sendMsg((uint8_t*)tmp2, cnt);
+        if(timer_val!=old_cnt){
+            UART_write(uartHandler, (uint8_t*)tmp2, cnt);
+
+            old_cnt =timer_val;
+        }
+
+    //This is test and example  code for timers with pin as source
